@@ -4,9 +4,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,7 +31,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             ShopAppTheme {
                 // A surface container using the 'background' color from the theme
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
                     Home()
                 }
             }
@@ -36,24 +44,30 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Home(modifier: Modifier = Modifier) {
+    Box(
+    ) {
         Column(
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.SpaceEvenly,
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = modifier
         ) {
-
             Button(
-                onClick = { ComponentActivity().setContent { PickTool()}
-            }) {
+                onClick = {}
+            ) {
                 Text("Pick Tool")
             }
-            Button(onClick = { /*TODO*/ }) {
+            Button(
+                onClick = {}
+            ) {
                 Text("Re-stock")
             }
-            Button(onClick = { /*TODO*/ }) {
+            Button(
+                onClick = {}
+            ) {
                 Text("Status")
             }
         }
+    }
 }
 
 @Preview(showBackground = true)
