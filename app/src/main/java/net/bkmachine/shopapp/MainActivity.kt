@@ -3,24 +3,21 @@ package net.bkmachine.shopapp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import net.bkmachine.shopapp.ui.theme.ShopAppTheme
 
@@ -30,57 +27,48 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             ShopAppTheme {
-                // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Home()
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        bottomBar = {
+                            BottomAppBar(
+                                actions = {
+                                    IconButton(onClick = {}) {
+                                        Icon(
+                                            imageVector = Icons.Default.Share,
+                                            contentDescription = "Pick Tool"
+                                        )
+                                    }
+                                    IconButton(onClick = {}) {
+                                        Icon(
+                                            imageVector = Icons.Default.FavoriteBorder,
+                                            contentDescription = "Re-Stock"
+                                        )
+                                    }
+                                    IconButton(onClick = {}) {
+                                        Icon(
+                                            imageVector = Icons.Default.Email,
+                                            contentDescription = "Details"
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    )
+                    {
+
+                    }
+                    /*Image(
+                        painter = painterResource(id = R.drawable.bk_logo),
+                        contentDescription = "BK Machine Logo",
+                        modifier = Modifier.offset(y = (-65).dp)
+                    )
+                    NavigationTabs()*/
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Home(modifier: Modifier = Modifier) {
-    Box(
-    ) {
-        Column(
-            verticalArrangement = Arrangement.SpaceEvenly,
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = modifier
-        ) {
-            Button(
-                onClick = {}
-            ) {
-                Text("Pick Tool")
-            }
-            Button(
-                onClick = {}
-            ) {
-                Text("Re-stock")
-            }
-            Button(
-                onClick = {}
-            ) {
-                Text("Status")
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HomePreview() {
-    ShopAppTheme {
-        Home()
-    }
-}
-
-@Composable
-fun PickTool(modifier: Modifier = Modifier) {
-    Surface {
-        Text("Ready to scan...")
     }
 }
