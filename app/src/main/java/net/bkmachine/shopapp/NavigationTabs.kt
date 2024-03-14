@@ -5,65 +5,74 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import net.bkmachine.shopapp.ui.theme.Purple40
+import net.bkmachine.shopapp.ui.theme.Purple80
 
 @Composable
-fun NavigationTabs(modifier: Modifier = Modifier) {
-    var headerText by remember {
-        mutableStateOf("Pick Tool")
-    }
-
+fun NavigationTabs(headerText: MutableState<String>, modifier: Modifier = Modifier) {
     Column(
-        verticalArrangement = Arrangement.SpaceBetween,
         modifier = modifier
     )
     {
-        Text(
-            text = headerText,
-            textAlign = TextAlign.Center,
-            fontSize = 30.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp)
-        )
         Row(
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.fillMaxWidth()
         ) {
-            HomeButton(text = "P", onClick = {
-                headerText = "Pick Tool"
-            })
-            HomeButton(text = "R", onClick = {
-                headerText = "Re-Stock"
-            })
-            HomeButton(text = "S", onClick = {
-                headerText = "Status"
-            })
+            HomeButton(
+                value = "Pick Tool",
+                headerText = headerText,
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    headerText.value = "Pick Tool"
+                }
+            )
+            HomeButton(
+                value = "Re-Stock",
+                headerText = headerText,
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    headerText.value = "Re-Stock"
+                }
+            )
+            HomeButton(
+                value = "Status",
+                headerText = headerText,
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    headerText.value = "Status"
+                }
+            )
         }
     }
 }
 
 @Composable
-fun HomeButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun HomeButton(
+    value: String,
+    headerText: MutableState<String>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val color: Color = if (value == headerText.value) {
+        Purple80
+    } else {
+        Purple40
+    }
     Button(
+        colors = ButtonDefaults.buttonColors(containerColor = color),
         shape = RectangleShape,
-        modifier = modifier.height(60.dp),
+        modifier = modifier.height(50.dp),
         onClick = onClick
     ) {
-        Text(text)
+        Text(value)
     }
 }
