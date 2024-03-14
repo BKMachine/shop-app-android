@@ -3,11 +3,11 @@ package net.bkmachine.shopapp
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,8 +19,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -31,14 +29,17 @@ import androidx.compose.ui.unit.sp
 import net.bkmachine.shopapp.ui.theme.ShopAppTheme
 
 class MainActivity : ComponentActivity() {
+    private val viewModel by viewModels<AppViewModel>()
+
+    private val client: ApiService.create();
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        //registerReceiver(receiver, IntentFilter(Intent.ACTION_SEND))
+
         setContent {
             ShopAppTheme {
-                val headerText = remember {
-                    mutableStateOf("Pick Tool")
-                }
-
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -47,7 +48,7 @@ class MainActivity : ComponentActivity() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = headerText.value,
+                            text = viewModel.headerText,
                             textAlign = TextAlign.Center,
                             fontSize = 30.sp,
                             fontWeight = FontWeight.Bold,
@@ -78,24 +79,23 @@ class MainActivity : ComponentActivity() {
                             }) {
                                 Text("Test")
                             }
-                            NavigationTabs(headerText = headerText)
+                            NavigationTabs(viewModel = viewModel)
                         }
                     }
                 }
             }
         }
-        registerReceiver(receiver, IntentFilter());
     }
 
     override fun onStop() {
         super.onStop()
-        unregisterReceiver(receiver);
+        //unregisterReceiver(receiver);
     }
 }
 
 fun pickTool(scanCode: String) {
     Log.d("DEBUG", scanCode)
-    val url = "https://10.1.1.2:3003/api/"
+
     // val header: HashMap<String, String> = hashMapOf()
 
     // Fuel.get(url).header(header).body.string()
