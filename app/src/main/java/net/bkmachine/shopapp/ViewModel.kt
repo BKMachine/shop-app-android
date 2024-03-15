@@ -38,7 +38,7 @@ class AppViewModel : ViewModel() {
         }
     }
 
-    fun handleScan(scanCode: String) = runBlocking {
+    fun handleScan(scanCode: String) {
         Log.d("SCAN_CODE", scanCode)
         setMessage(scanCode)
 

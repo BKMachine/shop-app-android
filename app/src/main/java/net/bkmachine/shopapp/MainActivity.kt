@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -81,11 +80,11 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxWidth()
                                     .padding(20.dp)
                             )
-                            Button(onClick = {
+                            /*Button(onClick = {
                                 viewModel.handleScan("62147")
                             }) {
                                 Text("Test")
-                            }
+                            }*/
                             NavigationTabs()
                         }
                     }
