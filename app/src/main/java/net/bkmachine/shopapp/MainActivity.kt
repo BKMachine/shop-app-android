@@ -1,10 +1,10 @@
 package net.bkmachine.shopapp
 
 import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,12 +26,24 @@ import androidx.compose.ui.unit.sp
 import net.bkmachine.shopapp.ui.theme.ShopAppTheme
 
 class MainActivity : ComponentActivity() {
-    private val viewModel by viewModels<AppViewModel>()
+    private val viewModel = MyViewModel
     private val barcodeScannerReceiver = BarcodeScannerReceiver()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        registerReceiver(barcodeScannerReceiver, IntentFilter(barcodeScannerReceiver.QR_ACTION))
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                barcodeScannerReceiver,
+                IntentFilter(barcodeScannerReceiver.QR_ACTION),
+                RECEIVER_EXPORTED
+            )
+        } else {
+            registerReceiver(
+                barcodeScannerReceiver,
+                IntentFilter(barcodeScannerReceiver.QR_ACTION)
+            )
+        }
 
         setContent {
             ShopAppTheme {
@@ -63,18 +75,18 @@ class MainActivity : ComponentActivity() {
                         )
                         {
                             Text(
-                                text = "Ready to scan...",
+                                text = viewModel.userMessage,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(20.dp)
                             )
                             Button(onClick = {
-                                viewModel.pickTool("62147")
+                                viewModel.handleScan("62147")
                             }) {
                                 Text("Test")
                             }
-                            NavigationTabs(viewModel = viewModel)
+                            NavigationTabs()
                         }
                     }
                 }

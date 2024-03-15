@@ -23,7 +23,7 @@ import net.bkmachine.shopapp.ui.theme.Purple40
 import net.bkmachine.shopapp.ui.theme.Purple80
 
 @Composable
-fun NavigationTabs(viewModel: AppViewModel, modifier: Modifier = Modifier) {
+fun NavigationTabs(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
     )
@@ -34,19 +34,16 @@ fun NavigationTabs(viewModel: AppViewModel, modifier: Modifier = Modifier) {
         ) {
             HomeButton(
                 text = "Pick Tool",
-                viewModel = viewModel,
                 icon = Icons.Outlined.ShoppingCart,
                 modifier = Modifier.weight(1f),
             )
             HomeButton(
                 text = "Re-Stock",
-                viewModel = viewModel,
                 icon = Icons.Outlined.Refresh,
                 modifier = Modifier.weight(1f),
             )
             HomeButton(
                 text = "Info",
-                viewModel = viewModel,
                 icon = Icons.Outlined.Info,
                 modifier = Modifier.weight(1f),
             )
@@ -57,11 +54,10 @@ fun NavigationTabs(viewModel: AppViewModel, modifier: Modifier = Modifier) {
 @Composable
 fun HomeButton(
     text: String,
-    viewModel: AppViewModel,
     icon: ImageVector,
     modifier: Modifier = Modifier
 ) {
-    val color: Color = if (text == viewModel.headerText) {
+    val color: Color = if (text == MyViewModel.headerText) {
         Purple80
     } else {
         Purple40
@@ -71,7 +67,8 @@ fun HomeButton(
         shape = RectangleShape,
         modifier = modifier,
         onClick = {
-            viewModel.setHeader(text)
+            MyViewModel.setHeader(text)
+            MyViewModel.setMessage(null)
         }
     ) {
         Column(

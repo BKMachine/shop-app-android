@@ -14,7 +14,7 @@ class BarcodeScannerReceiver : BroadcastReceiver() {
         if (intent?.action == QR_ACTION) {
             if (intent.hasExtra(QR_EXTRA)) {
                 val code = intent.getStringExtra(QR_EXTRA)
-                Log.d("SCAN_CODE", code.toString())
+                MyViewModel.handleScan(code.toString())
             }
         }
     }
