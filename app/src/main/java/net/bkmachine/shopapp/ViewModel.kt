@@ -1,5 +1,6 @@
 package net.bkmachine.shopapp
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -11,5 +12,9 @@ class AppViewModel : ViewModel() {
 
     fun setHeader(text: String) {
         headerText = text;
+    }
+
+    fun pickTool(scanCode: String) {
+        Log.d("DEBUG", scanCode)
     }
 }

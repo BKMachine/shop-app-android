@@ -1,10 +1,7 @@
 package net.bkmachine.shopapp
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -30,13 +27,11 @@ import net.bkmachine.shopapp.ui.theme.ShopAppTheme
 
 class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<AppViewModel>()
-
-    private val client: ApiService.create();
+    private val barcodeScannerReceiver = BarcodeScannerReceiver()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        //registerReceiver(receiver, IntentFilter(Intent.ACTION_SEND))
+        registerReceiver(barcodeScannerReceiver, IntentFilter(barcodeScannerReceiver.QR_ACTION))
 
         setContent {
             ShopAppTheme {
@@ -59,7 +54,7 @@ class MainActivity : ComponentActivity() {
                         Image(
                             painter = painterResource(id = R.drawable.bk_logo),
                             contentDescription = "BK Machine Logo",
-                            modifier = Modifier.fillMaxWidth(0.7f)
+                            modifier = Modifier.fillMaxWidth(0.6f)
                         )
                         Column(
                             verticalArrangement = Arrangement.SpaceBetween,
@@ -75,7 +70,7 @@ class MainActivity : ComponentActivity() {
                                     .padding(20.dp)
                             )
                             Button(onClick = {
-                                pickTool("62147")
+                                viewModel.pickTool("62147")
                             }) {
                                 Text("Test")
                             }
@@ -89,35 +84,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        //unregisterReceiver(receiver);
-    }
-}
-
-fun pickTool(scanCode: String) {
-    Log.d("DEBUG", scanCode)
-
-    // val header: HashMap<String, String> = hashMapOf()
-
-    // Fuel.get(url).header(header).body.string()
-}
-
-const val QR_ACTION: String = "scan.rcv.message"
-const val QR_EXTRA: String = "barcodeData"
-
-private val receiver = object : BroadcastReceiver() {
-    override fun onReceive(context: Context?, intent: Intent?) {
-        Log.d("DEBUG", intent?.action.toString())
-        /*try {
-        // Timber.d("Get intent ${intent.action}")
-        if (QR_ACTION == intent.action) {
-            if (intent.hasExtra(QR_EXTRA)) {
-                val code = intent.getStringExtra(QR_EXTRA)
-                // Timber.d("New QR code $code")
-                pickTool(code.toString())
-            }
-        }
-    } catch (t: Throwable) {
-        // handle errors
-    }*/
+        unregisterReceiver(barcodeScannerReceiver)
     }
 }
