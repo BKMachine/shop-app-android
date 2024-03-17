@@ -16,7 +16,15 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import net.bkmachine.shopapp.ui.theme.Background
+import net.bkmachine.shopapp.ui.theme.DarkGreen
+import net.bkmachine.shopapp.ui.theme.DarkRed
 
 const val defaultMessage = "Ready to scan..."
 
@@ -25,6 +33,11 @@ class AppViewModel : ViewModel() {
         private set
     var userMessage by mutableStateOf(defaultMessage)
         private set
+
+    var resultMessage by mutableStateOf("")
+        private set
+
+    var backgroundColor by mutableStateOf(Background)
 
     fun setHeader(text: String) {
         headerText = text
@@ -38,9 +51,18 @@ class AppViewModel : ViewModel() {
         }
     }
 
+    fun setResult(message: String?) {
+        resultMessage = if (message.isNullOrEmpty()) {
+            ""
+        } else {
+            message
+        }
+    }
+
     fun handleScan(scanCode: String) {
         Log.d("SCAN_CODE", scanCode)
-        setMessage(scanCode)
+        setMessage("Processing...")
+        setResult(null)
 
         when (headerText) {
             "Pick Tool" -> pickTool(scanCode)
@@ -48,23 +70,52 @@ class AppViewModel : ViewModel() {
     }
 }
 
-fun pickTool(scanCode: String) = runBlocking {
-    val client = HttpClient(Android) {
-        install(Logging) {
-            level = LogLevel.INFO
+var job: Job? = null;
+
+@OptIn(DelicateCoroutinesApi::class)
+fun pickTool(scanCode: String) {
+    if (job?.isActive == true) job?.cancel("A new scan was made.")
+    job = GlobalScope.launch {
+        val client = HttpClient(Android) {
+            install(Logging) {
+                level = LogLevel.INFO
+            }
+            install(ContentNegotiation) {
+                json()
+            }
         }
-        install(ContentNegotiation) {
-            json()
+        val body = ToolPickRequest(scanCode)
+        val response: HttpResponse = client.put(HttpRoutes.PICK_TOOL) {
+            contentType(ContentType.Application.Json)
+            setBody(body)
         }
+        println(response)
+        MyViewModel.backgroundColor = DarkRed
+        when (response.status.value) {
+            200 -> {
+                MyViewModel.backgroundColor = DarkGreen
+                MyViewModel.setResult("$scanCode\nPicked successfully.")
+            }
+
+            400 -> {
+                MyViewModel.setResult("$scanCode\nNo stock remaining.")
+            }
+
+            404 -> {
+                MyViewModel.setResult("$scanCode\nTool not found.")
+            }
+
+            else -> {
+                MyViewModel.setResult(response.status.toString())
+            }
+        }
+        client.close()
+        delay(500)
+        MyViewModel.setMessage(null)
+        MyViewModel.backgroundColor = Background
+        delay(2500)
+        MyViewModel.setResult(null)
     }
-    val body = ToolPickRequest(scanCode)
-    val response: HttpResponse = client.put(HttpRoutes.PICK_TOOL) {
-        contentType(ContentType.Application.Json)
-        setBody(body)
-    }
-    println(response.status)
-    MyViewModel.setMessage(response.status.toString())
-    client.close()
 }
 
 val MyViewModel = AppViewModel()

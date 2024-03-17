@@ -69,6 +69,7 @@ fun HomeButton(
         onClick = {
             MyViewModel.setHeader(text)
             MyViewModel.setMessage(null)
+            MyViewModel.setResult(null)
         }
     ) {
         Column(

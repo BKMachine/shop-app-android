@@ -6,17 +6,19 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,7 +50,7 @@ class MainActivity : ComponentActivity() {
             ShopAppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = viewModel.backgroundColor
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -78,13 +80,23 @@ class MainActivity : ComponentActivity() {
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(20.dp)
+                                    .padding(top = 20.dp)
                             )
-                            /*Button(onClick = {
-                                viewModel.handleScan("62147")
-                            }) {
-                                Text("Test")
-                            }*/
+                            if (viewModel.resultMessage != "") {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.9f)
+                                        .background(Color.DarkGray)
+                                        .padding(5.dp)
+                                )
+                                {
+                                    Text(
+                                        text = viewModel.resultMessage,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
+                            }
                             NavigationTabs()
                         }
                     }
