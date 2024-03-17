@@ -6,7 +6,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +17,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,18 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(
-                barcodeScannerReceiver,
-                IntentFilter(barcodeScannerReceiver.QR_ACTION),
-                RECEIVER_EXPORTED
-            )
-        } else {
-            registerReceiver(
-                barcodeScannerReceiver,
-                IntentFilter(barcodeScannerReceiver.QR_ACTION)
-            )
-        }
+        startReceivers()
 
         setContent {
             ShopAppTheme {
@@ -87,8 +74,6 @@ class MainActivity : ComponentActivity() {
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
                                         .fillMaxWidth(0.9f)
-                                        .background(Color.DarkGray)
-                                        .padding(5.dp)
                                 )
                                 {
                                     Text(
@@ -105,8 +90,28 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    fun startReceivers() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                barcodeScannerReceiver,
+                IntentFilter(barcodeScannerReceiver.QR_ACTION),
+                RECEIVER_EXPORTED
+            )
+        } else {
+            registerReceiver(
+                barcodeScannerReceiver,
+                IntentFilter(barcodeScannerReceiver.QR_ACTION)
+            )
+        }
+    }
+
     override fun onStop() {
         super.onStop()
         unregisterReceiver(barcodeScannerReceiver)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startReceivers()
     }
 }

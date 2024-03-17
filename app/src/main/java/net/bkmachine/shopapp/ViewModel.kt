@@ -61,8 +61,6 @@ class AppViewModel : ViewModel() {
 
     fun handleScan(scanCode: String) {
         Log.d("SCAN_CODE", scanCode)
-        setMessage("Processing...")
-        setResult(null)
 
         when (headerText) {
             "Pick Tool" -> pickTool(scanCode)
@@ -76,6 +74,8 @@ var job: Job? = null;
 fun pickTool(scanCode: String) {
     if (job?.isActive == true) job?.cancel("A new scan was made.")
     job = GlobalScope.launch {
+        MyViewModel.setMessage("Processing...")
+        MyViewModel.setResult(null)
         val client = HttpClient(Android) {
             install(Logging) {
                 level = LogLevel.INFO
@@ -113,7 +113,7 @@ fun pickTool(scanCode: String) {
         delay(500)
         MyViewModel.setMessage(null)
         MyViewModel.backgroundColor = Background
-        delay(2500)
+        delay(5000)
         MyViewModel.setResult(null)
     }
 }
