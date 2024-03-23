@@ -6,19 +6,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -59,12 +58,14 @@ class MainActivity : ComponentActivity() {
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(20.dp)
+                                .padding(top = 20.dp)
                         )
-                        Image(
-                            painter = painterResource(id = R.drawable.bk_logo),
-                            contentDescription = "BK Machine Logo",
-                            modifier = Modifier.fillMaxWidth(0.6f)
+                        Text(
+                            text = viewModel.userMessage,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp)
                         )
                         Column(
                             verticalArrangement = Arrangement.SpaceBetween,
@@ -72,26 +73,22 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxHeight()
                         )
                         {
-                            Text(
-                                text = viewModel.userMessage,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 20.dp)
+                            Image(
+                                painter = painterResource(id = R.drawable.bk_logo),
+                                contentDescription = "BK Machine Logo",
+                                modifier = Modifier.fillMaxWidth(0.6f)
                             )
-                            if (viewModel.resultMessage != "") {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.9f)
-                                        .background(Color.DarkGray)
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                            )
+                            {
+                                Text(
+                                    text = viewModel.resultMessage,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.offset(y = (-8).dp)
                                 )
-                                {
-                                    Text(
-                                        text = viewModel.resultMessage,
-                                        textAlign = TextAlign.Center,
-                                    )
-                                }
                             }
                             NavigationTabs()
                         }

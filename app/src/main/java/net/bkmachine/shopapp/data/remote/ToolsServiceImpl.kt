@@ -1,6 +1,7 @@
 package net.bkmachine.shopapp.data.remote
 
 import io.ktor.client.HttpClient
+import io.ktor.client.request.get
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -16,5 +17,10 @@ class ToolsServiceImpl(
             contentType(ContentType.Application.Json)
             setBody(toolPickRequest)
         }
+    }
+
+    override suspend fun toolInfo(scanCode: String): HttpResponse {
+        val url = HttpRoutes.TOOL_INFO.replace(":scanCode", scanCode)
+        return client.get(url) {}
     }
 }
