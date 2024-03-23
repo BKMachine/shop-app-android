@@ -5,28 +5,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.android.Android
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.request.put
-import io.ktor.client.request.setBody
+import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import net.bkmachine.shopapp.data.remote.ToolsService
+import net.bkmachine.shopapp.data.remote.dto.ToolPickRequest
+import net.bkmachine.shopapp.data.remote.dto.ToolResponse
 import net.bkmachine.shopapp.ui.theme.Background
 import net.bkmachine.shopapp.ui.theme.DarkGreen
 import net.bkmachine.shopapp.ui.theme.DarkRed
 
 const val defaultMessage = "Ready to scan..."
+private val client = ToolsService.create();
 
 class AppViewModel : ViewModel() {
     var headerText by mutableStateOf("Pick Tool")
@@ -64,6 +59,7 @@ class AppViewModel : ViewModel() {
 
         when (headerText) {
             "Pick Tool" -> pickTool(scanCode)
+            "Re-Stock" -> stockTool(scanCode)
         }
     }
 }
@@ -76,6 +72,62 @@ fun pickTool(scanCode: String) {
     job = GlobalScope.launch {
         MyViewModel.setMessage("Processing...")
         MyViewModel.setResult(null)
+        val body = ToolPickRequest(scanCode)
+        val response: HttpResponse? = client.pickTool(body)
+        println(response)
+        if (response != null) {
+            val toolResponse = response.body<ToolResponse>();
+            val description = toolResponse.description
+            val stock = toolResponse.stock
+            val onReorder = toolResponse.onOrder
+            val autoReorder = toolResponse.autoReorder
+            val reorderThreshold = toolResponse.reorderThreshold
+
+            when (response.status.value) {
+                200 -> {
+                    MyViewModel.backgroundColor = DarkGreen
+                    var text = "$scanCode\n$description\nPicked successfully.\n$stock remaining."
+                    if (onReorder) text += "\nOrder placed."
+                    else if (autoReorder && stock <= reorderThreshold) text += "\nFlagged for re-order."
+                    MyViewModel.setResult(text)
+                }
+
+                400 -> {
+                    MyViewModel.backgroundColor = DarkRed
+                    var text = "$scanCode\n$description\nNo stock remaining."
+                    if (onReorder) text += "\nOrder placed."
+                    else if (autoReorder && stock <= reorderThreshold) text += "\nFlagged for re-order."
+                    MyViewModel.setResult(text)
+                }
+
+                404 -> {
+                    MyViewModel.backgroundColor = DarkRed
+                    MyViewModel.setResult("$scanCode\nTool not found.")
+                }
+
+                else -> {
+                    MyViewModel.backgroundColor = DarkRed
+                    MyViewModel.setResult(response.status.toString())
+                }
+            }
+        } else {
+            MyViewModel.backgroundColor = DarkRed
+            MyViewModel.setResult("API Error")
+        }
+        delay(1000)
+        MyViewModel.setMessage(null)
+        MyViewModel.backgroundColor = Background
+        delay(4000)
+        MyViewModel.setResult(null)
+    }
+}
+
+@OptIn(DelicateCoroutinesApi::class)
+fun stockTool(scanCode: String) {
+    /*if (job?.isActive == true) job?.cancel("A new scan was made.")
+    job = GlobalScope.launch {
+        MyViewModel.setMessage("Processing...")
+        MyViewModel.setResult(null)
         val client = HttpClient(Android) {
             install(Logging) {
                 level = LogLevel.INFO
@@ -85,37 +137,12 @@ fun pickTool(scanCode: String) {
             }
         }
         val body = ToolPickRequest(scanCode)
-        val response: HttpResponse = client.put(HttpRoutes.PICK_TOOL) {
+        val response: HttpResponse = client.put(HttpRoutes.STOCK_TOOL) {
             contentType(ContentType.Application.Json)
             setBody(body)
         }
         println(response)
-        MyViewModel.backgroundColor = DarkRed
-        when (response.status.value) {
-            200 -> {
-                MyViewModel.backgroundColor = DarkGreen
-                MyViewModel.setResult("$scanCode\nPicked successfully.")
-            }
-
-            400 -> {
-                MyViewModel.setResult("$scanCode\nNo stock remaining.")
-            }
-
-            404 -> {
-                MyViewModel.setResult("$scanCode\nTool not found.")
-            }
-
-            else -> {
-                MyViewModel.setResult(response.status.toString())
-            }
-        }
-        client.close()
-        delay(500)
-        MyViewModel.setMessage(null)
-        MyViewModel.backgroundColor = Background
-        delay(5000)
-        MyViewModel.setResult(null)
-    }
+    }*/
 }
 
 val MyViewModel = AppViewModel()

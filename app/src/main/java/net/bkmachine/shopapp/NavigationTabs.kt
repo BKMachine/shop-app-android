@@ -52,7 +52,7 @@ fun NavigationTabs(modifier: Modifier = Modifier) {
                 text = "Info",
                 icon = Icons.Outlined.Info,
                 onClick = {
-                    MyViewModel.setMessage("Not yet implemented.")
+                    MyViewModel.setMessage(null)
                 },
                 modifier = Modifier.weight(1f),
             )
