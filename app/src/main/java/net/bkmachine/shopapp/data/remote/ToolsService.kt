@@ -11,9 +11,9 @@ import kotlinx.serialization.json.Json
 import net.bkmachine.shopapp.data.remote.dto.ToolPickRequest
 
 interface ToolsService {
-    suspend fun pickTool(toolPickRequest: ToolPickRequest): HttpResponse?
+    suspend fun pickTool(toolPickRequest: ToolPickRequest): HttpResponse
 
-    suspend fun toolInfo(scanCode: String): HttpResponse?
+    suspend fun toolInfo(scanCode: String): HttpResponse
 
     companion object {
         fun create(): ToolsService {

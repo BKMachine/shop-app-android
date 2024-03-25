@@ -14,12 +14,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,19 +43,22 @@ class MainActivity : ComponentActivity() {
         startReceivers()
 
         setContent {
+            var mText by remember { mutableStateOf("0050") }
+
             ShopAppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = viewModel.backgroundColor
                 ) {
-                    /*Button(
+                    Button(
                         onClick = {
                             MyViewModel.handleScan("120850")
                         }
                     )
                     {
                         Text(text = "Test")
-                    }*/
+                    }
+
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -73,11 +84,23 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxHeight()
                         )
                         {
-                            Image(
-                                painter = painterResource(id = R.drawable.bk_logo),
-                                contentDescription = "BK Machine Logo",
-                                modifier = Modifier.fillMaxWidth(0.6f)
-                            )
+                            if (viewModel.showStockTextField && viewModel.headerText == "Re-Stock") {
+                                TextField(
+                                    value = mText,
+                                    modifier = Modifier
+                                        .fillMaxWidth(),
+                                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                                    onValueChange = {
+                                        mText = it
+                                    }
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(id = R.drawable.bk_logo),
+                                    contentDescription = "BK Machine Logo",
+                                    modifier = Modifier.fillMaxWidth(0.6f)
+                                )
+                            }
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier

@@ -35,25 +35,16 @@ fun NavigationTabs(modifier: Modifier = Modifier) {
             HomeButton(
                 text = "Pick Tool",
                 icon = Icons.Outlined.ShoppingCart,
-                onClick = {
-                    MyViewModel.setMessage(null)
-                },
                 modifier = Modifier.weight(1f),
             )
             HomeButton(
                 text = "Re-Stock",
                 icon = Icons.Outlined.Refresh,
-                onClick = {
-                    MyViewModel.setMessage("Not yet implemented.")
-                },
                 modifier = Modifier.weight(1f),
             )
             HomeButton(
                 text = "Info",
                 icon = Icons.Outlined.Info,
-                onClick = {
-                    MyViewModel.setMessage(null)
-                },
                 modifier = Modifier.weight(1f),
             )
         }
@@ -64,7 +55,6 @@ fun NavigationTabs(modifier: Modifier = Modifier) {
 fun HomeButton(
     text: String,
     icon: ImageVector,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val color: Color = if (text == MyViewModel.headerText) {
@@ -80,7 +70,7 @@ fun HomeButton(
             MyViewModel.setHeader(text)
             MyViewModel.setMessage(null)
             MyViewModel.setResult(null)
-            onClick()
+            MyViewModel.setShowStock(false)
         }
     ) {
         Column(
