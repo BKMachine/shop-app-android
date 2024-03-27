@@ -20,7 +20,7 @@ data class ToolResponse(
     val reorderThreshold: Int,
     val productLink: String? = null,
     val techDataLink: String? = null,
-    val cost: Int? = null,
+    val cost: Double? = null,
     val onOrder: Boolean,
     val orderedOn: String? = null,
     val location: String? = null,

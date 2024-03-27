@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -50,14 +49,14 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = viewModel.backgroundColor
                 ) {
-                    Button(
+                    /*Button(
                         onClick = {
                             MyViewModel.handleScan("120850")
                         }
                     )
                     {
                         Text(text = "Test")
-                    }
+                    }*/
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
