@@ -15,6 +15,8 @@ interface ToolsService {
 
     suspend fun toolInfo(scanCode: String): HttpResponse
 
+    suspend fun updateTool(id: String, amount: Int): HttpResponse
+
     companion object {
         fun create(): ToolsService {
             return ToolsServiceImpl(
