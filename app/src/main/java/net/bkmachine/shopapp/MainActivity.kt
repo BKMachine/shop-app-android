@@ -23,9 +23,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalTextInputService
 import androidx.compose.ui.res.painterResource
@@ -50,9 +53,9 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize(), color = viewModel.backgroundColor
                 ) {
-                    /*Button(modifier = Modifier.height(5.dp), onClick = {
+                    Button(modifier = Modifier.height(5.dp), onClick = {
                         MyViewModel.handleScan("120850")
-                    }) {}*/
+                    }) {}
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -79,7 +82,9 @@ class MainActivity : ComponentActivity() {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxHeight()
                         ) {
+                            val focusRequester = remember { FocusRequester() }
                             if (viewModel.showStockTextField && viewModel.headerText == "Re-Stock") {
+                                // focusRequester.requestFocus()
                                 Spacer(modifier = Modifier.height(0.dp))
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -105,7 +110,7 @@ class MainActivity : ComponentActivity() {
                                             textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
                                             modifier = Modifier
                                                 .fillMaxWidth(0.6f)
-                                                // .focusRequester(MyViewModel.focusRequester)
+                                                .focusRequester(focusRequester)
                                                 .onKeyEvent {
                                                     Log.d(
                                                         "KeyCode",

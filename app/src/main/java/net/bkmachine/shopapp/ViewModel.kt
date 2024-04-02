@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.focus.FocusRequester
 import androidx.lifecycle.ViewModel
 import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
@@ -41,7 +40,6 @@ class AppViewModel : ViewModel() {
 
     var tool by mutableStateOf<ToolResponse?>(null)
     var mText by mutableStateOf("")
-    val focusRequester = FocusRequester()
 
     fun setShowStock(bool: Boolean) {
         showStockTextField = bool
@@ -252,7 +250,6 @@ fun stockTool(scanCode: String) {
                 MyViewModel.setResult(text)
                 MyViewModel.setShowStock(true)
                 MyViewModel.setMessage("Enter amount to adjust stock:")
-                // MyViewModel.focusRequester.requestFocus()
             }
 
             404 -> {
