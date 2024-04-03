@@ -24,7 +24,7 @@ import net.bkmachine.shopapp.ui.theme.DarkGreen
 import net.bkmachine.shopapp.ui.theme.DarkRed
 
 const val defaultMessage = "Ready to scan..."
-private val client = ToolsService.create();
+private val client = ToolsService.create()
 var isUpdating by mutableStateOf(false)
 
 class AppViewModel : ViewModel() {
@@ -76,7 +76,7 @@ class AppViewModel : ViewModel() {
     }
 
     fun setTool(tool: ToolResponse?) {
-        lastTool = tool;
+        lastTool = tool
     }
 
     fun setTextField(textFieldValue: TextFieldValue) {
@@ -103,23 +103,23 @@ class AppViewModel : ViewModel() {
     fun updateStock(amount: String) {
         if (amount.isBlank()) {
             Log.d("Stock Amount", "Blank String")
-            return;
+            return
         }
         val num: Int
         try {
             num = Integer.parseInt(amount)
         } catch (e: NumberFormatException) {
             setMessage("Not a number.")
-            return;
+            return
         }
         if (num == 0) {
             Log.d("Stock Amount", "0")
-            return;
+            return
         }
         if (isUpdating) return
         val t = lastTool?.copy()
         if (t != null) {
-            val newStock = t.stock + num;
+            val newStock = t.stock + num
             if (newStock < 0) {
                 setMessage("Not enough stock.")
                 return
@@ -129,7 +129,7 @@ class AppViewModel : ViewModel() {
     }
 }
 
-var job: Job? = null;
+var job: Job? = null
 
 @OptIn(DelicateCoroutinesApi::class)
 fun pickTool(scanCode: String) {
@@ -143,13 +143,13 @@ fun pickTool(scanCode: String) {
 
         when (response.status.value) {
             200 -> {
-                val toolResponse = response.body<ToolResponse>();
+                val toolResponse = response.body<ToolResponse>()
                 MyViewModel.setBackground(DarkGreen)
                 MyViewModel.setResult(formatResultMessage(toolResponse))
             }
 
             400 -> {
-                val toolResponse = response.body<ToolResponse>();
+                val toolResponse = response.body<ToolResponse>()
                 MyViewModel.setBackground(DarkRed)
                 MyViewModel.setResult(formatResultMessage(toolResponse, 400))
             }
@@ -182,7 +182,7 @@ fun toolInfo(scanCode: String) {
 
         when (response.status.value) {
             200 -> {
-                val toolResponse = response.body<ToolResponse>();
+                val toolResponse = response.body<ToolResponse>()
                 MyViewModel.setBackground(DarkGreen)
                 MyViewModel.setResult(formatResultMessage(toolResponse))
             }
@@ -213,7 +213,7 @@ fun reStockTool(scanCode: String) {
 
         when (response.status.value) {
             200 -> {
-                val toolResponse = response.body<ToolResponse>();
+                val toolResponse = response.body<ToolResponse>()
                 MyViewModel.setBackground(DarkGreen)
                 MyViewModel.setResult(formatResultMessage(toolResponse))
                 MyViewModel.setMessage(" ")
@@ -235,17 +235,17 @@ fun reStockTool(scanCode: String) {
 
 @OptIn(DelicateCoroutinesApi::class)
 fun updateTool(tool: ToolResponse, amount: Int) {
-    if (job?.isActive == true) return;
-    isUpdating = true;
+    if (job?.isActive == true) return
+    isUpdating = true
     job = GlobalScope.launch {
         MyViewModel.setMessage("Processing...")
-        isUpdating = false;
+        isUpdating = false
         val response: HttpResponse = client.updateTool(tool._id, amount)
         println(response)
 
         when (response.status.value) {
             200 -> {
-                val toolResponse = response.body<ToolResponse>();
+                val toolResponse = response.body<ToolResponse>()
                 MyViewModel.setBackground(DarkGreen)
                 MyViewModel.setResult(formatResultMessage(toolResponse))
                 MyViewModel.setTextField("")
