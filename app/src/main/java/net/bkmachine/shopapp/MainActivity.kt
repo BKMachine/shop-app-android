@@ -10,6 +10,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,12 +18,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -53,9 +56,9 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize(), color = viewModel.backgroundColor
                 ) {
-                    Button(modifier = Modifier.height(5.dp), onClick = {
+                    /*Button(modifier = Modifier.height(5.dp), onClick = {
                         MyViewModel.handleScan("120850")
-                    }) {}
+                    }) {}*/
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -84,26 +87,29 @@ class MainActivity : ComponentActivity() {
                         ) {
                             val focusRequester = remember { FocusRequester() }
                             if (viewModel.showStockTextField && viewModel.headerText == "Re-Stock") {
-                                // focusRequester.requestFocus()
+                                LaunchedEffect(viewModel.showStockTextField) {
+                                    if (viewModel.showStockTextField) focusRequester.requestFocus()
+                                }
                                 Spacer(modifier = Modifier.height(0.dp))
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier
                                 ) {
-                                    Text(
-                                        text = viewModel.userMessage,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.padding(10.dp)
-                                    )
                                     CompositionLocalProvider(
                                         LocalTextInputService provides null
                                     ) {
-                                        TextField(value = MyViewModel.mText,
-                                            placeholder = {
+                                        Text(
+                                            text = viewModel.userMessage,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.padding(10.dp)
+                                        )
+                                        TextField(
+                                            value = MyViewModel.mTextField,
+                                            label = {
                                                 Text(
-                                                    text = "",
+                                                    text = "Stock Adjustment Amount",
                                                     modifier = Modifier.fillMaxWidth(),
-                                                    textAlign = TextAlign.Start
+                                                    textAlign = TextAlign.Center
                                                 )
                                             },
                                             singleLine = true,
@@ -117,21 +123,45 @@ class MainActivity : ComponentActivity() {
                                                         it.nativeKeyEvent.keyCode.toString()
                                                     )
                                                     if (it.nativeKeyEvent.keyCode == 66) {
-                                                        viewModel.updateStock(MyViewModel.mText)
-                                                        true
+                                                        viewModel.updateStock(MyViewModel.mTextField.text)
                                                     }
                                                     false
                                                 },
                                             onValueChange = {
-                                                MyViewModel.mText = it
+                                                MyViewModel.setTextField(it)
                                             })
                                     }
-
-                                    Button(
-                                        onClick = { viewModel.updateStock(MyViewModel.mText) },
+                                    Row(
+                                        horizontalArrangement = Arrangement.SpaceBetween,
                                         modifier = Modifier.fillMaxWidth(0.6f)
                                     ) {
-                                        Text(text = "Enter")
+                                        Button(
+                                            onClick = {
+                                                if (viewModel.mTextField.text.isBlank()) return@Button
+                                                val num: Int
+                                                try {
+                                                    num =
+                                                        Integer.parseInt(viewModel.mTextField.text)
+                                                } catch (e: NumberFormatException) {
+                                                    viewModel.setMessage("Not a number.")
+                                                    return@Button
+                                                }
+                                                if (num == 0) return@Button
+                                                val text = (-num).toString()
+                                                viewModel.setTextField(text)
+                                                focusRequester.requestFocus()
+                                            },
+                                            modifier = Modifier
+                                        ) {
+                                            Text(text = "+/-", modifier = Modifier)
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Button(
+                                            onClick = { viewModel.updateStock(MyViewModel.mTextField.text) },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(text = "Enter")
+                                        }
                                     }
                                 }
                             } else {

@@ -4,6 +4,9 @@ import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
@@ -29,21 +32,20 @@ class AppViewModel : ViewModel() {
         private set
     var userMessage by mutableStateOf(defaultMessage)
         private set
-
     var resultMessage by mutableStateOf("")
         private set
-
     var backgroundColor by mutableStateOf(Background)
-
+        private set
     var showStockTextField by mutableStateOf(false)
         private set
-
-    var tool by mutableStateOf<ToolResponse?>(null)
-    var mText by mutableStateOf("")
-
-    fun setShowStock(bool: Boolean) {
-        showStockTextField = bool
-    }
+    private var lastTool by mutableStateOf<ToolResponse?>(null)
+    var mTextField by mutableStateOf(
+        TextFieldValue(
+            text = "",
+            selection = TextRange(0)
+        )
+    )
+        private set
 
     fun setHeader(text: String) {
         headerText = text
@@ -65,12 +67,35 @@ class AppViewModel : ViewModel() {
         }
     }
 
+    fun setBackground(color: Color) {
+        backgroundColor = color
+    }
+
+    fun setShowStock(bool: Boolean) {
+        showStockTextField = bool
+    }
+
+    fun setTool(tool: ToolResponse?) {
+        lastTool = tool;
+    }
+
+    fun setTextField(textFieldValue: TextFieldValue) {
+        mTextField = textFieldValue
+    }
+
+    fun setTextField(text: String) {
+        mTextField = TextFieldValue(
+            text = text,
+            selection = TextRange(text.length)
+        )
+    }
+
     fun handleScan(scanCode: String) {
         Log.d("SCAN_CODE", scanCode)
 
         when (headerText) {
             "Pick Tool" -> pickTool(scanCode)
-            "Re-Stock" -> stockTool(scanCode)
+            "Re-Stock" -> reStockTool(scanCode)
             "Info" -> toolInfo(scanCode)
         }
     }
@@ -92,7 +117,7 @@ class AppViewModel : ViewModel() {
             return;
         }
         if (isUpdating) return
-        val t = tool?.copy()
+        val t = lastTool?.copy()
         if (t != null) {
             val newStock = t.stock + num;
             if (newStock < 0) {
@@ -119,45 +144,27 @@ fun pickTool(scanCode: String) {
         when (response.status.value) {
             200 -> {
                 val toolResponse = response.body<ToolResponse>();
-                val description = toolResponse.description
-                val stock = toolResponse.stock
-                val onReorder = toolResponse.onOrder
-                val autoReorder = toolResponse.autoReorder
-                val reorderThreshold = toolResponse.reorderThreshold
-                MyViewModel.backgroundColor = DarkGreen
-                var text = "$scanCode\n$description\nPicked successfully.\n$stock remaining."
-                if (onReorder) text += "\nOrder placed."
-                else if (autoReorder && stock <= reorderThreshold) text += "\nFlagged for re-order."
-                MyViewModel.setResult(text)
+                MyViewModel.setBackground(DarkGreen)
+                MyViewModel.setResult(formatResultMessage(toolResponse))
             }
 
             400 -> {
                 val toolResponse = response.body<ToolResponse>();
-                val description = toolResponse.description
-                val stock = toolResponse.stock
-                val onReorder = toolResponse.onOrder
-                val autoReorder = toolResponse.autoReorder
-                val reorderThreshold = toolResponse.reorderThreshold
-                MyViewModel.backgroundColor = DarkRed
-                var text = "$scanCode\n$description\nNo stock remaining."
-                if (onReorder) text += "\nOrder placed."
-                else if (autoReorder && stock <= reorderThreshold) text += "\nFlagged for re-order."
-                MyViewModel.setResult(text)
+                MyViewModel.setBackground(DarkRed)
+                MyViewModel.setResult(formatResultMessage(toolResponse, 400))
             }
 
             404 -> {
-                MyViewModel.backgroundColor = DarkRed
-                MyViewModel.setResult("$scanCode\nTool not found.")
+                toolNotFound(scanCode)
             }
 
             else -> {
-                MyViewModel.backgroundColor = DarkRed
-                MyViewModel.setResult(response.status.toString())
+                serverErrorMessage(response)
             }
         }
         delay(1000)
+        MyViewModel.setBackground(Background)
         MyViewModel.setMessage(null)
-        MyViewModel.backgroundColor = Background
         delay(4000)
         MyViewModel.setResult(null)
     }
@@ -176,99 +183,55 @@ fun toolInfo(scanCode: String) {
         when (response.status.value) {
             200 -> {
                 val toolResponse = response.body<ToolResponse>();
-                val description = toolResponse.description
-                val stock = toolResponse.stock
-                val onReorder = toolResponse.onOrder
-                val autoReorder = toolResponse.autoReorder
-                val reorderThreshold = toolResponse.reorderThreshold
-                val location = toolResponse.location
-                val position = toolResponse.position
-                MyViewModel.backgroundColor = DarkGreen
-                var text = "$scanCode\n$description"
-                if (location != null) {
-                    text += "\n$location"
-                    if (position !== null) {
-                        text += " - $position"
-                    }
-                }
-                text += "\n$stock in stock."
-                if (onReorder) text += "\nOrder placed."
-                else if (autoReorder && stock <= reorderThreshold) text += "\nFlagged for re-order."
-                MyViewModel.setResult(text)
+                MyViewModel.setBackground(DarkGreen)
+                MyViewModel.setResult(formatResultMessage(toolResponse))
             }
 
             404 -> {
-                MyViewModel.backgroundColor = DarkRed
-                MyViewModel.setResult("$scanCode\nTool not found.")
+                toolNotFound(scanCode)
             }
 
             else -> {
-                MyViewModel.backgroundColor = DarkRed
-                MyViewModel.setResult(response.status.toString())
+                serverErrorMessage(response)
             }
         }
         delay(1000)
+        MyViewModel.setBackground(Background)
         MyViewModel.setMessage(null)
-        MyViewModel.backgroundColor = Background
     }
 }
 
-
 @OptIn(DelicateCoroutinesApi::class)
-fun stockTool(scanCode: String) {
+fun reStockTool(scanCode: String) {
     if (job?.isActive == true) job?.cancel("A new scan was made.")
     job = GlobalScope.launch {
         MyViewModel.setMessage("Processing...")
         MyViewModel.setResult(null)
-        MyViewModel.tool = null
+        MyViewModel.setTool(null)
         val response: HttpResponse = client.toolInfo(scanCode)
         println(response)
 
         when (response.status.value) {
             200 -> {
                 val toolResponse = response.body<ToolResponse>();
-                val item = toolResponse.item
-                val description = toolResponse.description
-                val stock = toolResponse.stock
-                val onReorder = toolResponse.onOrder
-                val autoReorder = toolResponse.autoReorder
-                val reorderThreshold = toolResponse.reorderThreshold
-                val location = toolResponse.location
-                val position = toolResponse.position
-                MyViewModel.backgroundColor = DarkGreen
-                MyViewModel.tool = toolResponse
-                var text = "$item\n$description"
-                if (location != null) {
-                    text += "\n$location"
-                    if (position !== null) {
-                        text += " - $position"
-                    }
-                }
-                text += "\n$stock in stock."
-                if (onReorder) text += "\nOrder placed."
-                else if (autoReorder && stock <= reorderThreshold) text += "\nFlagged for re-order."
-                MyViewModel.setResult(text)
+                MyViewModel.setBackground(DarkGreen)
+                MyViewModel.setResult(formatResultMessage(toolResponse))
+                MyViewModel.setMessage(" ")
                 MyViewModel.setShowStock(true)
-                MyViewModel.setMessage("Enter amount to adjust stock:")
             }
 
             404 -> {
-                MyViewModel.backgroundColor = DarkRed
-                MyViewModel.setResult("$scanCode\nTool not found.")
-                MyViewModel.setMessage(null)
+                toolNotFound(scanCode)
             }
 
             else -> {
-                MyViewModel.backgroundColor = DarkRed
-                MyViewModel.setResult(response.status.toString())
-                MyViewModel.setMessage(null)
+                serverErrorMessage(response)
             }
         }
         delay(1000)
-        MyViewModel.backgroundColor = Background
+        MyViewModel.setBackground(Background)
     }
 }
-
 
 @OptIn(DelicateCoroutinesApi::class)
 fun updateTool(tool: ToolResponse, amount: Int) {
@@ -283,49 +246,65 @@ fun updateTool(tool: ToolResponse, amount: Int) {
         when (response.status.value) {
             200 -> {
                 val toolResponse = response.body<ToolResponse>();
-                val item = toolResponse.item
-                val description = toolResponse.description
-                val stock = toolResponse.stock
-                val onReorder = toolResponse.onOrder
-                val autoReorder = toolResponse.autoReorder
-                val reorderThreshold = toolResponse.reorderThreshold
-                val location = toolResponse.location
-                val position = toolResponse.position
-                MyViewModel.backgroundColor = DarkGreen
-                MyViewModel.tool = toolResponse
-                var text = "$item\n$description"
-                if (location != null) {
-                    text += "\n$location"
-                    if (position !== null) {
-                        text += " - $position"
-                    }
-                }
-                text += "\n$stock in stock."
-                if (onReorder) text += "\nOrder placed."
-                else if (autoReorder && stock <= reorderThreshold) text += "\nFlagged for re-order."
-                MyViewModel.setResult(text)
-                MyViewModel.mText = ""
-                MyViewModel.setMessage(null)
+                MyViewModel.setBackground(DarkGreen)
+                MyViewModel.setResult(formatResultMessage(toolResponse))
+                MyViewModel.setTextField("")
                 MyViewModel.setShowStock(false)
             }
 
             404 -> {
-                MyViewModel.backgroundColor = DarkRed
-                MyViewModel.setResult("Tool not found.")
-                MyViewModel.setMessage(null)
+                toolNotFound("")
             }
 
             else -> {
-                MyViewModel.backgroundColor = DarkRed
-                MyViewModel.setResult(response.status.toString())
-                MyViewModel.setMessage(null)
+                serverErrorMessage(response)
             }
         }
         delay(1000)
-        MyViewModel.backgroundColor = Background
+        MyViewModel.setBackground(Background)
+        MyViewModel.setMessage(null)
         delay(4000)
         MyViewModel.setResult(null)
     }
+}
+
+fun formatResultMessage(tool: ToolResponse, status: Int = 200): String {
+    MyViewModel.setTool(tool)
+    val item = tool.item
+    val description = tool.description
+    val stock = tool.stock
+    val onReorder = tool.onOrder
+    val autoReorder = tool.autoReorder
+    val reorderThreshold = tool.reorderThreshold
+    val location = tool.location
+    val position = tool.position
+    var text = "$item\n$description"
+    if (status == 200) {
+
+        if (location != null) {
+            text += "\n$location"
+            if (position !== null) {
+                text += " - $position"
+            }
+        }
+        text += "\n$stock in stock."
+    } else if (status == 400) {
+        text += "\nNo stock remaining."
+    }
+    if (onReorder) text += "\nOrder placed."
+    else if (autoReorder && stock <= reorderThreshold) text += "\nFlagged for re-order."
+    return text
+}
+
+fun toolNotFound(scanCode: String) {
+    MyViewModel.setBackground(DarkRed)
+    val text = if (scanCode.isBlank()) "Tool not found." else "$scanCode\nTool not found."
+    MyViewModel.setResult(text)
+}
+
+fun serverErrorMessage(response: HttpResponse) {
+    MyViewModel.setBackground(DarkRed)
+    MyViewModel.setResult(response.status.toString())
 }
 
 val MyViewModel = AppViewModel()
