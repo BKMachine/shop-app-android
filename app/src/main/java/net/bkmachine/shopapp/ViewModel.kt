@@ -22,10 +22,12 @@ import net.bkmachine.shopapp.ui.theme.DarkGreen
 import net.bkmachine.shopapp.ui.theme.DarkRed
 
 const val defaultMessage = "Ready to scan..."
+private const val IDLE_TIMEOUT_MS = 300000L // 5 minutes
 
 class AppViewModel : ViewModel() {
     private val client = ToolsService.create()
     private var job: Job? = null
+    private var idleJob: Job? = null
     
     var isUpdating by mutableStateOf(false)
         private set
@@ -46,8 +48,44 @@ class AppViewModel : ViewModel() {
     )
         private set
 
+    init {
+        resetIdleTimer()
+    }
+
+    fun resetIdleTimer() {
+        idleJob?.cancel()
+        idleJob = viewModelScope.launch {
+            delay(IDLE_TIMEOUT_MS)
+            if (headerText != "Pick Tool") {
+                Log.d("AppViewModel", "Idle timeout reached, resetting to Pick Tool")
+                resetToDefault()
+            }
+        }
+    }
+
+    fun resetToDefault() {
+        headerText = "Pick Tool"
+        setMessage(null)
+        setResult(null)
+        setShowStock(false)
+        setBackground(Background)
+        setTextField("")
+        setTool(null)
+    }
+
+    fun selectTab(text: String) {
+        headerText = text
+        setMessage(null)
+        setResult(null)
+        setShowStock(false)
+        setBackground(Background)
+        setTextField("")
+        resetIdleTimer()
+    }
+
     fun setHeader(text: String) {
         headerText = text
+        resetIdleTimer()
     }
 
     fun setMessage(message: String?) {
@@ -72,14 +110,17 @@ class AppViewModel : ViewModel() {
 
     fun setTextField(textFieldValue: TextFieldValue) {
         mTextField = textFieldValue
+        resetIdleTimer()
     }
 
     fun setTextField(text: String) {
         mTextField = TextFieldValue(text = text, selection = TextRange(text.length))
+        resetIdleTimer()
     }
 
     fun handleScan(scanCode: String) {
         Log.d("AppViewModel", "Handling scan: $scanCode in mode: $headerText")
+        resetIdleTimer()
         when (headerText) {
             "Pick Tool" -> pickTool(scanCode)
             "Re-Stock" -> reStockTool(scanCode)
@@ -182,6 +223,7 @@ class AppViewModel : ViewModel() {
     }
 
     fun updateStock(amount: String) {
+        resetIdleTimer()
         val num = amount.toIntOrNull() ?: run {
             setMessage("Not a number.")
             return

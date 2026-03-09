@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.sp
-import net.bkmachine.shopapp.ui.theme.Background
 import net.bkmachine.shopapp.ui.theme.Purple40
 import net.bkmachine.shopapp.ui.theme.Purple80
 
@@ -68,11 +67,7 @@ fun HomeButton(
         shape = RectangleShape,
         modifier = modifier,
         onClick = {
-            MyViewModel.setHeader(text)
-            MyViewModel.setMessage(null)
-            MyViewModel.setResult(null)
-            MyViewModel.setShowStock(false)
-            MyViewModel.setBackground(Background)
+            MyViewModel.selectTab(text)
         }
     ) {
         Column(
