@@ -7,6 +7,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.encodeURLPath
 import net.bkmachine.shopapp.data.remote.dto.ToolPickRequest
 import net.bkmachine.shopapp.data.remote.dto.ToolStockRequest
 
@@ -21,14 +22,14 @@ class ToolsServiceImpl(
     }
 
     override suspend fun toolInfo(scanCode: String): HttpResponse {
-        val url = HttpRoutes.TOOL_INFO.replace(":scanCode", scanCode)
-        return client.get(url) {}
+        val encodedCode = scanCode.encodeURLPath()
+        val url = HttpRoutes.TOOL_INFO.replace(":scanCode", encodedCode)
+        return client.get(url)
     }
 
     override suspend fun updateTool(id: String, amount: Int): HttpResponse {
-        val url = HttpRoutes.TOOL_STOCK
         val body = ToolStockRequest(id, amount)
-        return client.put(url) {
+        return client.put(HttpRoutes.TOOL_STOCK) {
             contentType(ContentType.Application.Json)
             setBody(body)
         }

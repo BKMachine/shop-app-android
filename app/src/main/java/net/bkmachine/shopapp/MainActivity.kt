@@ -4,6 +4,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -49,6 +50,22 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Global exception handler to provide feedback on crash
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Log.e("ShopAppCrash", "Uncaught exception in thread ${thread.name}", throwable)
+            runOnUiThread {
+                Toast.makeText(
+                    applicationContext,
+                    "Application Error: ${throwable.localizedMessage ?: throwable.toString()}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            // Give time for Toast to show (though it might still be killed quickly)
+            try { Thread.sleep(2000) } catch (e: InterruptedException) {}
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+
         startReceivers()
 
         setContent {
@@ -56,9 +73,6 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize(), color = viewModel.backgroundColor
                 ) {
-                    /*Button(modifier = Modifier.height(5.dp), onClick = {
-                        MyViewModel.handleScan("120850")
-                    }) {}*/
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -88,7 +102,13 @@ class MainActivity : ComponentActivity() {
                             val focusRequester = remember { FocusRequester() }
                             if (viewModel.showStockTextField && viewModel.headerText == "Re-Stock") {
                                 LaunchedEffect(viewModel.showStockTextField) {
-                                    if (viewModel.showStockTextField) focusRequester.requestFocus()
+                                    if (viewModel.showStockTextField) {
+                                        try {
+                                            focusRequester.requestFocus()
+                                        } catch (e: Exception) {
+                                            Log.e("MainActivity", "Focus request failed", e)
+                                        }
+                                    }
                                 }
                                 Spacer(modifier = Modifier.height(0.dp))
                                 Column(
@@ -118,10 +138,6 @@ class MainActivity : ComponentActivity() {
                                                 .fillMaxWidth(0.6f)
                                                 .focusRequester(focusRequester)
                                                 .onKeyEvent {
-                                                    Log.d(
-                                                        "KeyCode",
-                                                        it.nativeKeyEvent.keyCode.toString()
-                                                    )
                                                     if (it.nativeKeyEvent.keyCode == 66) {
                                                         viewModel.updateStock(MyViewModel.mTextField.text)
                                                     }
@@ -138,11 +154,8 @@ class MainActivity : ComponentActivity() {
                                         Button(
                                             onClick = {
                                                 if (viewModel.mTextField.text.isBlank()) return@Button
-                                                val num: Int
-                                                try {
-                                                    num =
-                                                        Integer.parseInt(viewModel.mTextField.text)
-                                                } catch (e: NumberFormatException) {
+                                                val num = viewModel.mTextField.text.toIntOrNull()
+                                                if (num == null) {
                                                     viewModel.setMessage("Not a number.")
                                                     return@Button
                                                 }
@@ -190,22 +203,32 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startReceivers() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(
-                barcodeScannerReceiver,
-                IntentFilter(barcodeScannerReceiver.QR_ACTION),
-                RECEIVER_EXPORTED
-            )
-        } else {
-            registerReceiver(
-                barcodeScannerReceiver, IntentFilter(barcodeScannerReceiver.QR_ACTION)
-            )
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(
+                    barcodeScannerReceiver,
+                    IntentFilter(barcodeScannerReceiver.QR_ACTION),
+                    RECEIVER_EXPORTED
+                )
+            } else {
+                // For older versions, we still might want to specify exported if we know it comes from outside
+                // but standard registerReceiver is usually fine.
+                registerReceiver(
+                    barcodeScannerReceiver, IntentFilter(barcodeScannerReceiver.QR_ACTION)
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Receiver registration failed", e)
         }
     }
 
     override fun onStop() {
         super.onStop()
-        unregisterReceiver(barcodeScannerReceiver)
+        try {
+            unregisterReceiver(barcodeScannerReceiver)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Receiver unregistration failed", e)
+        }
     }
 
     override fun onResume() {

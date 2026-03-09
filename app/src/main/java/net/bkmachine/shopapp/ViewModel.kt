@@ -8,12 +8,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.bkmachine.shopapp.data.remote.ToolsService
@@ -24,10 +22,14 @@ import net.bkmachine.shopapp.ui.theme.DarkGreen
 import net.bkmachine.shopapp.ui.theme.DarkRed
 
 const val defaultMessage = "Ready to scan..."
-private val client = ToolsService.create()
-var isUpdating by mutableStateOf(false)
 
 class AppViewModel : ViewModel() {
+    private val client = ToolsService.create()
+    private var job: Job? = null
+    
+    var isUpdating by mutableStateOf(false)
+        private set
+
     var headerText by mutableStateOf("Pick Tool")
         private set
     var userMessage by mutableStateOf(defaultMessage)
@@ -40,10 +42,7 @@ class AppViewModel : ViewModel() {
         private set
     private var lastTool by mutableStateOf<ToolResponse?>(null)
     var mTextField by mutableStateOf(
-        TextFieldValue(
-            text = "",
-            selection = TextRange(0)
-        )
+        TextFieldValue(text = "", selection = TextRange(0))
     )
         private set
 
@@ -52,19 +51,11 @@ class AppViewModel : ViewModel() {
     }
 
     fun setMessage(message: String?) {
-        userMessage = if (message.isNullOrEmpty()) {
-            defaultMessage
-        } else {
-            message
-        }
+        userMessage = message ?: defaultMessage
     }
 
     fun setResult(message: String?) {
-        resultMessage = if (message.isNullOrEmpty()) {
-            ""
-        } else {
-            message
-        }
+        resultMessage = message ?: ""
     }
 
     fun setBackground(color: Color) {
@@ -84,15 +75,11 @@ class AppViewModel : ViewModel() {
     }
 
     fun setTextField(text: String) {
-        mTextField = TextFieldValue(
-            text = text,
-            selection = TextRange(text.length)
-        )
+        mTextField = TextFieldValue(text = text, selection = TextRange(text.length))
     }
 
     fun handleScan(scanCode: String) {
-        Log.d("SCAN_CODE", scanCode)
-
+        Log.d("AppViewModel", "Handling scan: $scanCode in mode: $headerText")
         when (headerText) {
             "Pick Tool" -> pickTool(scanCode)
             "Re-Stock" -> reStockTool(scanCode)
@@ -100,211 +87,170 @@ class AppViewModel : ViewModel() {
         }
     }
 
-    fun updateStock(amount: String) {
-        if (amount.isBlank()) {
-            Log.d("Stock Amount", "Blank String")
-            return
+    private fun handleError(t: Throwable, functionName: String) {
+        Log.e("AppViewModel", "Error in $functionName: ${t.message}", t)
+        setBackground(DarkRed)
+        setResult("Error: ${t.localizedMessage ?: t.toString()}")
+        setMessage("Connection failed")
+    }
+
+    private fun pickTool(scanCode: String) {
+        job?.cancel()
+        job = viewModelScope.launch {
+            try {
+                setMessage("Processing...")
+                setResult(null)
+                val response: HttpResponse = client.pickTool(ToolPickRequest(scanCode))
+                
+                when (response.status.value) {
+                    200 -> {
+                        val toolResponse = response.body<ToolResponse>()
+                        setBackground(DarkGreen)
+                        setResult(formatResultMessage(toolResponse))
+                    }
+                    400 -> {
+                        val toolResponse = response.body<ToolResponse>()
+                        setBackground(DarkRed)
+                        setResult(formatResultMessage(toolResponse, 400))
+                    }
+                    404 -> toolNotFound(scanCode)
+                    else -> serverErrorMessage(response)
+                }
+                delay(1000)
+                setBackground(Background)
+                setMessage(null)
+                delay(4000)
+                setResult(null)
+            } catch (t: Throwable) {
+                handleError(t, "pickTool")
+            }
         }
-        val num: Int
-        try {
-            num = Integer.parseInt(amount)
-        } catch (e: NumberFormatException) {
+    }
+
+    private fun toolInfo(scanCode: String) {
+        job?.cancel()
+        job = viewModelScope.launch {
+            try {
+                setMessage("Processing...")
+                setResult(null)
+                val response: HttpResponse = client.toolInfo(scanCode)
+                
+                when (response.status.value) {
+                    200 -> {
+                        val toolResponse = response.body<ToolResponse>()
+                        setBackground(DarkGreen)
+                        setResult(formatResultMessage(toolResponse))
+                    }
+                    404 -> toolNotFound(scanCode)
+                    else -> serverErrorMessage(response)
+                }
+                delay(1000)
+                setBackground(Background)
+                setMessage(null)
+            } catch (t: Throwable) {
+                handleError(t, "toolInfo")
+            }
+        }
+    }
+
+    private fun reStockTool(scanCode: String) {
+        job?.cancel()
+        job = viewModelScope.launch {
+            try {
+                setMessage("Processing...")
+                setResult(null)
+                setTool(null)
+                val response: HttpResponse = client.toolInfo(scanCode)
+                
+                when (response.status.value) {
+                    200 -> {
+                        val toolResponse = response.body<ToolResponse>()
+                        setBackground(DarkGreen)
+                        setResult(formatResultMessage(toolResponse))
+                        setMessage(" ")
+                        setShowStock(true)
+                    }
+                    404 -> toolNotFound(scanCode)
+                    else -> serverErrorMessage(response)
+                }
+                delay(1000)
+                setBackground(Background)
+            } catch (t: Throwable) {
+                handleError(t, "reStockTool")
+            }
+        }
+    }
+
+    fun updateStock(amount: String) {
+        val num = amount.toIntOrNull() ?: run {
             setMessage("Not a number.")
             return
         }
-        if (num == 0) {
-            Log.d("Stock Amount", "0")
+        if (num == 0 || isUpdating) return
+        
+        val t = lastTool ?: return
+        if (t.stock + num < 0) {
+            setMessage("Not enough stock.")
             return
         }
-        if (isUpdating) return
-        val t = lastTool?.copy()
-        if (t != null) {
-            val newStock = t.stock + num
-            if (newStock < 0) {
-                setMessage("Not enough stock.")
-                return
-            }
-            updateTool(t, num)
-        }
-    }
-}
 
-var job: Job? = null
+        job?.cancel()
+        job = viewModelScope.launch {
+            try {
+                isUpdating = true
+                setMessage("Processing...")
+                val response: HttpResponse = client.updateTool(t._id, num)
+                isUpdating = false
 
-@OptIn(DelicateCoroutinesApi::class)
-fun pickTool(scanCode: String) {
-    if (job?.isActive == true) job?.cancel("A new scan was made.")
-    job = GlobalScope.launch {
-        MyViewModel.setMessage("Processing...")
-        MyViewModel.setResult(null)
-        val body = ToolPickRequest(scanCode)
-        val response: HttpResponse = client.pickTool(body)
-        println(response)
-
-        when (response.status.value) {
-            200 -> {
-                val toolResponse = response.body<ToolResponse>()
-                MyViewModel.setBackground(DarkGreen)
-                MyViewModel.setResult(formatResultMessage(toolResponse))
-            }
-
-            400 -> {
-                val toolResponse = response.body<ToolResponse>()
-                MyViewModel.setBackground(DarkRed)
-                MyViewModel.setResult(formatResultMessage(toolResponse, 400))
-            }
-
-            404 -> {
-                toolNotFound(scanCode)
-            }
-
-            else -> {
-                serverErrorMessage(response)
+                when (response.status.value) {
+                    200 -> {
+                        val toolResponse = response.body<ToolResponse>()
+                        setBackground(DarkGreen)
+                        setResult(formatResultMessage(toolResponse))
+                        setTextField("")
+                        setShowStock(false)
+                    }
+                    404 -> toolNotFound("")
+                    else -> serverErrorMessage(response)
+                }
+                delay(1000)
+                setBackground(Background)
+                setMessage(null)
+                delay(4000)
+                setResult(null)
+            } catch (t: Throwable) {
+                isUpdating = false
+                handleError(t, "updateTool")
             }
         }
-        delay(1000)
-        MyViewModel.setBackground(Background)
-        MyViewModel.setMessage(null)
-        delay(4000)
-        MyViewModel.setResult(null)
     }
-}
 
-
-@OptIn(DelicateCoroutinesApi::class)
-fun toolInfo(scanCode: String) {
-    if (job?.isActive == true) job?.cancel("A new scan was made.")
-    job = GlobalScope.launch {
-        MyViewModel.setMessage("Processing...")
-        MyViewModel.setResult(null)
-        val response: HttpResponse = client.toolInfo(scanCode)
-        println(response)
-
-        when (response.status.value) {
-            200 -> {
-                val toolResponse = response.body<ToolResponse>()
-                MyViewModel.setBackground(DarkGreen)
-                MyViewModel.setResult(formatResultMessage(toolResponse))
+    private fun formatResultMessage(tool: ToolResponse, status: Int = 200): String {
+        setTool(tool)
+        var text = "${tool.item ?: "Unknown"}\n${tool.description}"
+        if (status == 200) {
+            tool.location?.let {
+                text += "\n$it"
+                tool.position?.let { pos -> text += " - $pos" }
             }
-
-            404 -> {
-                toolNotFound(scanCode)
-            }
-
-            else -> {
-                serverErrorMessage(response)
-            }
+            text += "\n${tool.stock} in stock."
+        } else if (status == 400) {
+            text += "\nNo stock remaining."
         }
-        delay(1000)
-        MyViewModel.setBackground(Background)
-        MyViewModel.setMessage(null)
+        if (tool.onOrder) text += "\nOrder placed."
+        else if (tool.autoReorder && tool.stock <= tool.reorderThreshold) text += "\nFlagged for re-order."
+        return text
     }
-}
 
-@OptIn(DelicateCoroutinesApi::class)
-fun reStockTool(scanCode: String) {
-    if (job?.isActive == true) job?.cancel("A new scan was made.")
-    job = GlobalScope.launch {
-        MyViewModel.setMessage("Processing...")
-        MyViewModel.setResult(null)
-        MyViewModel.setTool(null)
-        val response: HttpResponse = client.toolInfo(scanCode)
-        println(response)
-
-        when (response.status.value) {
-            200 -> {
-                val toolResponse = response.body<ToolResponse>()
-                MyViewModel.setBackground(DarkGreen)
-                MyViewModel.setResult(formatResultMessage(toolResponse))
-                MyViewModel.setMessage(" ")
-                MyViewModel.setShowStock(true)
-            }
-
-            404 -> {
-                toolNotFound(scanCode)
-            }
-
-            else -> {
-                serverErrorMessage(response)
-            }
-        }
-        delay(1000)
-        MyViewModel.setBackground(Background)
+    private fun toolNotFound(scanCode: String) {
+        setBackground(DarkRed)
+        setResult(if (scanCode.isBlank()) "Tool not found." else "$scanCode\nTool not found.")
     }
-}
 
-@OptIn(DelicateCoroutinesApi::class)
-fun updateTool(tool: ToolResponse, amount: Int) {
-    if (job?.isActive == true) return
-    isUpdating = true
-    job = GlobalScope.launch {
-        MyViewModel.setMessage("Processing...")
-        isUpdating = false
-        val response: HttpResponse = client.updateTool(tool._id, amount)
-        println(response)
-
-        when (response.status.value) {
-            200 -> {
-                val toolResponse = response.body<ToolResponse>()
-                MyViewModel.setBackground(DarkGreen)
-                MyViewModel.setResult(formatResultMessage(toolResponse))
-                MyViewModel.setTextField("")
-                MyViewModel.setShowStock(false)
-            }
-
-            404 -> {
-                toolNotFound("")
-            }
-
-            else -> {
-                serverErrorMessage(response)
-            }
-        }
-        delay(1000)
-        MyViewModel.setBackground(Background)
-        MyViewModel.setMessage(null)
-        delay(4000)
-        MyViewModel.setResult(null)
+    private fun serverErrorMessage(response: HttpResponse) {
+        setBackground(DarkRed)
+        setResult("Server error: ${response.status}")
     }
-}
-
-fun formatResultMessage(tool: ToolResponse, status: Int = 200): String {
-    MyViewModel.setTool(tool)
-    val item = tool.item
-    val description = tool.description
-    val stock = tool.stock
-    val onReorder = tool.onOrder
-    val autoReorder = tool.autoReorder
-    val reorderThreshold = tool.reorderThreshold
-    val location = tool.location
-    val position = tool.position
-    var text = "$item\n$description"
-    if (status == 200) {
-
-        if (location != null) {
-            text += "\n$location"
-            if (position !== null) {
-                text += " - $position"
-            }
-        }
-        text += "\n$stock in stock."
-    } else if (status == 400) {
-        text += "\nNo stock remaining."
-    }
-    if (onReorder) text += "\nOrder placed."
-    else if (autoReorder && stock <= reorderThreshold) text += "\nFlagged for re-order."
-    return text
-}
-
-fun toolNotFound(scanCode: String) {
-    MyViewModel.setBackground(DarkRed)
-    val text = if (scanCode.isBlank()) "Tool not found." else "$scanCode\nTool not found."
-    MyViewModel.setResult(text)
-}
-
-fun serverErrorMessage(response: HttpResponse) {
-    MyViewModel.setBackground(DarkRed)
-    MyViewModel.setResult(response.status.toString())
 }
 
 val MyViewModel = AppViewModel()
