@@ -5,4 +5,5 @@ object HttpRoutes {
     const val PICK_TOOL = "$BASE_URL/tools/pick"
     const val TOOL_INFO = "$BASE_URL/tools/info/:scanCode"
     const val TOOL_STOCK = "$BASE_URL/tools/stock"
+    const val REGISTER_DEVICE = "$BASE_URL/devices/register"
 }

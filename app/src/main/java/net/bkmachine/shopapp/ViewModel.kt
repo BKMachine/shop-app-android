@@ -1,5 +1,6 @@
 package net.bkmachine.shopapp
 
+import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -14,7 +15,10 @@ import io.ktor.client.statement.HttpResponse
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import net.bkmachine.shopapp.data.local.DeviceIdentityManager
 import net.bkmachine.shopapp.data.remote.ToolsService
+import net.bkmachine.shopapp.data.remote.dto.ApiErrorResponse
+import net.bkmachine.shopapp.data.remote.dto.DeviceRegistrationRequest
 import net.bkmachine.shopapp.data.remote.dto.ToolPickRequest
 import net.bkmachine.shopapp.data.remote.dto.ToolResponse
 import net.bkmachine.shopapp.ui.theme.Background
@@ -25,7 +29,11 @@ const val defaultMessage = "Ready to scan..."
 private const val IDLE_TIMEOUT_MS = 300000L // 5 minutes
 
 class AppViewModel : ViewModel() {
-    private val client = ToolsService.create()
+    private var _client: ToolsService? = null
+    private val client: ToolsService get() = _client!!
+    private var _deviceIdentityManager: DeviceIdentityManager? = null
+    private val deviceIdentityManager: DeviceIdentityManager get() = _deviceIdentityManager!!
+
     private var job: Job? = null
     private var idleJob: Job? = null
     
@@ -47,6 +55,25 @@ class AppViewModel : ViewModel() {
         TextFieldValue(text = "", selection = TextRange(0))
     )
         private set
+
+    // Device Registration State
+    var showRegistrationScreen by mutableStateOf(false)
+        private set
+    var registrationDisplayName by mutableStateOf("")
+    var registrationError by mutableStateOf<String?>(null)
+    var isRegistering by mutableStateOf(false)
+        private set
+    var isBlocked by mutableStateOf(false)
+        private set
+
+    private var pendingAction: (suspend () -> Unit)? = null
+
+    fun init(context: Context) {
+        if (_deviceIdentityManager == null) {
+            _deviceIdentityManager = DeviceIdentityManager(context.applicationContext)
+            _client = ToolsService.create(deviceIdentityManager)
+        }
+    }
 
     init {
         resetIdleTimer()
@@ -128,6 +155,69 @@ class AppViewModel : ViewModel() {
         }
     }
 
+    private suspend fun handleResponse(
+        response: HttpResponse, 
+        onSuccess: suspend () -> Unit,
+        retryAction: suspend () -> Unit
+    ) {
+        when (response.status.value) {
+            in 200..299 -> onSuccess()
+            403 -> {
+                val errorBody = response.body<ApiErrorResponse>()
+                when (errorBody.error) {
+                    "device_not_registered" -> {
+                        pendingAction = retryAction
+                        showRegistrationScreen = true
+                    }
+                    "device_blocked", "device_not_approved" -> {
+                        isBlocked = true
+                        setBackground(DarkRed)
+                        setResult(errorBody.message)
+                    }
+                    else -> serverErrorMessage(response)
+                }
+            }
+            404 -> {
+                // Handle 404 separately in each function if needed, 
+                // but for now we'll let the caller handle it if it's not a common error.
+                serverErrorMessage(response)
+            }
+            else -> serverErrorMessage(response)
+        }
+    }
+
+    fun registerDevice() {
+        if (registrationDisplayName.isBlank()) {
+            registrationError = "Display name cannot be empty"
+            return
+        }
+        viewModelScope.launch {
+            isRegistering = true
+            registrationError = null
+            try {
+                val request = DeviceRegistrationRequest(
+                    deviceId = deviceIdentityManager.getOrCreateDeviceId(),
+                    displayName = registrationDisplayName,
+                    deviceType = "android"
+                )
+                val response = client.registerDevice(request)
+                if (response.status.value == 201 || response.status.value == 409) {
+                    deviceIdentityManager.saveDisplayName(registrationDisplayName)
+                    showRegistrationScreen = false
+                    pendingAction?.invoke()
+                    pendingAction = null
+                } else {
+                    val errorBody = response.body<ApiErrorResponse>()
+                    registrationError = errorBody.message
+                }
+            } catch (t: Throwable) {
+                registrationError = "Registration failed: ${t.localizedMessage}"
+            } finally {
+                isRegistering = false
+            }
+        }
+    }
+
     private fun handleError(t: Throwable, functionName: String) {
         Log.e("AppViewModel", "Error in $functionName: ${t.message}", t)
         setBackground(DarkRed)
@@ -143,22 +233,22 @@ class AppViewModel : ViewModel() {
                 setResult(null)
                 val response: HttpResponse = client.pickTool(ToolPickRequest(scanCode))
                 
-                when (response.status.value) {
-                    200 -> {
-                        val toolResponse = response.body<ToolResponse>()
-                        setBackground(DarkGreen)
-                        setResult(formatResultMessage(toolResponse))
-                    }
-                    400 -> {
-                        val toolResponse = response.body<ToolResponse>()
-                        setBackground(DarkRed)
-                        setResult(formatResultMessage(toolResponse, 400))
-                    }
-                    404 -> toolNotFound(scanCode)
-                    else -> serverErrorMessage(response)
+                handleResponse(response, onSuccess = {
+                    val toolResponse = response.body<ToolResponse>()
+                    setBackground(DarkGreen)
+                    setResult(formatResultMessage(toolResponse))
+                }, retryAction = { pickTool(scanCode) })
+
+                if (response.status.value == 400) {
+                     val toolResponse = response.body<ToolResponse>()
+                     setBackground(DarkRed)
+                     setResult(formatResultMessage(toolResponse, 400))
+                } else if (response.status.value == 404) {
+                    toolNotFound(scanCode)
                 }
+
                 delay(1000)
-                setBackground(Background)
+                if (!isBlocked) setBackground(Background)
                 setMessage(null)
                 delay(4000)
                 setResult(null)
@@ -176,17 +266,18 @@ class AppViewModel : ViewModel() {
                 setResult(null)
                 val response: HttpResponse = client.toolInfo(scanCode)
                 
-                when (response.status.value) {
-                    200 -> {
-                        val toolResponse = response.body<ToolResponse>()
-                        setBackground(DarkGreen)
-                        setResult(formatResultMessage(toolResponse))
-                    }
-                    404 -> toolNotFound(scanCode)
-                    else -> serverErrorMessage(response)
+                handleResponse(response, onSuccess = {
+                    val toolResponse = response.body<ToolResponse>()
+                    setBackground(DarkGreen)
+                    setResult(formatResultMessage(toolResponse))
+                }, retryAction = { toolInfo(scanCode) })
+
+                if (response.status.value == 404) {
+                    toolNotFound(scanCode)
                 }
+
                 delay(1000)
-                setBackground(Background)
+                if (!isBlocked) setBackground(Background)
                 setMessage(null)
             } catch (t: Throwable) {
                 handleError(t, "toolInfo")
@@ -203,19 +294,20 @@ class AppViewModel : ViewModel() {
                 setTool(null)
                 val response: HttpResponse = client.toolInfo(scanCode)
                 
-                when (response.status.value) {
-                    200 -> {
-                        val toolResponse = response.body<ToolResponse>()
-                        setBackground(DarkGreen)
-                        setResult(formatResultMessage(toolResponse))
-                        setMessage(" ")
-                        setShowStock(true)
-                    }
-                    404 -> toolNotFound(scanCode)
-                    else -> serverErrorMessage(response)
+                handleResponse(response, onSuccess = {
+                    val toolResponse = response.body<ToolResponse>()
+                    setBackground(DarkGreen)
+                    setResult(formatResultMessage(toolResponse))
+                    setMessage(" ")
+                    setShowStock(true)
+                }, retryAction = { reStockTool(scanCode) })
+
+                if (response.status.value == 404) {
+                    toolNotFound(scanCode)
                 }
+
                 delay(1000)
-                setBackground(Background)
+                if (!isBlocked) setBackground(Background)
             } catch (t: Throwable) {
                 handleError(t, "reStockTool")
             }
@@ -244,19 +336,20 @@ class AppViewModel : ViewModel() {
                 val response: HttpResponse = client.updateTool(t._id, num)
                 isUpdating = false
 
-                when (response.status.value) {
-                    200 -> {
-                        val toolResponse = response.body<ToolResponse>()
-                        setBackground(DarkGreen)
-                        setResult(formatResultMessage(toolResponse))
-                        setTextField("")
-                        setShowStock(false)
-                    }
-                    404 -> toolNotFound("")
-                    else -> serverErrorMessage(response)
+                handleResponse(response, onSuccess = {
+                    val toolResponse = response.body<ToolResponse>()
+                    setBackground(DarkGreen)
+                    setResult(formatResultMessage(toolResponse))
+                    setTextField("")
+                    setShowStock(false)
+                }, retryAction = { updateStock(amount) })
+
+                if (response.status.value == 404) {
+                    toolNotFound("")
                 }
+
                 delay(1000)
-                setBackground(Background)
+                if (!isBlocked) setBackground(Background)
                 setMessage(null)
                 delay(4000)
                 setResult(null)

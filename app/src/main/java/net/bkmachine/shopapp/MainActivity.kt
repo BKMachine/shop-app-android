@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,10 +22,13 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -33,6 +37,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalTextInputService
 import androidx.compose.ui.res.painterResource
@@ -40,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import net.bkmachine.shopapp.ui.theme.ShopAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -49,6 +55,8 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        viewModel.init(this)
 
         // Global exception handler to provide feedback on crash
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
@@ -73,6 +81,10 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize(), color = viewModel.backgroundColor
                 ) {
+                    if (viewModel.showRegistrationScreen) {
+                        RegistrationScreen(viewModel)
+                    }
+
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -234,5 +246,66 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         startReceivers()
+    }
+}
+
+@Composable
+fun RegistrationScreen(viewModel: AppViewModel) {
+    Dialog(onDismissRequest = { }) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Device Registration",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "This device is not registered. Please enter a display name to register.",
+                    textAlign = TextAlign.Center
+                )
+                
+                TextField(
+                    value = viewModel.registrationDisplayName,
+                    onValueChange = { viewModel.registrationDisplayName = it },
+                    label = { Text("Display Name") },
+                    placeholder = { Text("BK-SCAN-01") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = viewModel.registrationError != null
+                )
+                
+                if (viewModel.registrationError != null) {
+                    Text(
+                        text = viewModel.registrationError!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                
+                Button(
+                    onClick = { viewModel.registerDevice() },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !viewModel.isRegistering
+                ) {
+                    if (viewModel.isRegistering) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.width(20.dp).height(20.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Register Device")
+                    }
+                }
+            }
+        }
     }
 }

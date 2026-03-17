@@ -2,12 +2,14 @@ package net.bkmachine.shopapp.data.remote
 
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
+import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.encodeURLPath
+import net.bkmachine.shopapp.data.remote.dto.DeviceRegistrationRequest
 import net.bkmachine.shopapp.data.remote.dto.ToolPickRequest
 import net.bkmachine.shopapp.data.remote.dto.ToolStockRequest
 
@@ -32,6 +34,13 @@ class ToolsServiceImpl(
         return client.put(HttpRoutes.TOOL_STOCK) {
             contentType(ContentType.Application.Json)
             setBody(body)
+        }
+    }
+
+    override suspend fun registerDevice(request: DeviceRegistrationRequest): HttpResponse {
+        return client.post(HttpRoutes.REGISTER_DEVICE) {
+            contentType(ContentType.Application.Json)
+            setBody(request)
         }
     }
 }
