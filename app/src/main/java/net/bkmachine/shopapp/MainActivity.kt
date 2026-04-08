@@ -1,56 +1,43 @@
 package net.bkmachine.shopapp
 
+import android.content.Context
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.platform.LocalTextInputService
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import net.bkmachine.shopapp.ui.theme.ShopAppTheme
+import net.bkmachine.shopapp.ui.MainSelectionScreen
+import net.bkmachine.shopapp.ui.PartsScreen
+import net.bkmachine.shopapp.ui.ToolsScreen
+import net.bkmachine.shopapp.ui.theme.*
 
 class MainActivity : ComponentActivity() {
     private val viewModel = MyViewModel
     private val barcodeScannerReceiver = BarcodeScannerReceiver()
+    private var isReceiverRegistered = false
 
     @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,6 +49,16 @@ class MainActivity : ComponentActivity() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("ShopAppCrash", "Uncaught exception in thread ${thread.name}", throwable)
+            
+            try {
+                getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("last_mode", AppMode.MAIN.name)
+                    .commit()
+            } catch (e: Exception) {
+                Log.e("ShopAppCrash", "Failed to clear last_mode", e)
+            }
+
             runOnUiThread {
                 Toast.makeText(
                     applicationContext,
@@ -69,144 +66,111 @@ class MainActivity : ComponentActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
-            // Give time for Toast to show (though it might still be killed quickly)
             try { Thread.sleep(2000) } catch (e: InterruptedException) {}
             defaultHandler?.uncaughtException(thread, throwable)
         }
 
-        startReceivers()
-
         setContent {
-            ShopAppTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(), color = viewModel.backgroundColor
-                ) {
-                    if (viewModel.showRegistrationScreen) {
-                        RegistrationScreen(viewModel)
-                    }
+            // Re-register receiver when switching modes
+            LaunchedEffect(viewModel.appMode) {
+                if (viewModel.appMode != AppMode.IMAGES) {
+                    stopReceivers()
+                    startReceivers()
+                }
+            }
 
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = viewModel.headerText,
-                            textAlign = TextAlign.Center,
-                            fontSize = 30.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 20.dp)
-                        )
-                        if (!viewModel.showStockTextField || viewModel.headerText != "Re-Stock") {
-                            Text(
-                                text = viewModel.userMessage,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(10.dp)
-                            )
-                        }
-                        Column(
-                            verticalArrangement = Arrangement.SpaceBetween,
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxHeight()
-                        ) {
-                            val focusRequester = remember { FocusRequester() }
-                            if (viewModel.showStockTextField && viewModel.headerText == "Re-Stock") {
-                                LaunchedEffect(viewModel.showStockTextField) {
-                                    if (viewModel.showStockTextField) {
-                                        try {
-                                            focusRequester.requestFocus()
-                                        } catch (e: Exception) {
-                                            Log.e("MainActivity", "Focus request failed", e)
-                                        }
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(0.dp))
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier
-                                ) {
-                                    CompositionLocalProvider(
-                                        LocalTextInputService provides null
-                                    ) {
-                                        Text(
-                                            text = viewModel.userMessage,
-                                            textAlign = TextAlign.Center,
-                                            modifier = Modifier.padding(10.dp)
-                                        )
-                                        TextField(
-                                            value = MyViewModel.mTextField,
-                                            label = {
-                                                Text(
-                                                    text = "Stock Adjustment Amount",
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    textAlign = TextAlign.Center
-                                                )
-                                            },
-                                            singleLine = true,
-                                            textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
-                                            modifier = Modifier
-                                                .fillMaxWidth(0.6f)
-                                                .focusRequester(focusRequester)
-                                                .onKeyEvent {
-                                                    if (it.nativeKeyEvent.keyCode == 66) {
-                                                        viewModel.updateStock(MyViewModel.mTextField.text)
-                                                    }
-                                                    false
-                                                },
-                                            onValueChange = {
-                                                MyViewModel.setTextField(it)
-                                            })
-                                    }
-                                    Row(
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth(0.6f)
-                                    ) {
-                                        Button(
-                                            onClick = {
-                                                if (viewModel.mTextField.text.isBlank()) return@Button
-                                                val num = viewModel.mTextField.text.toIntOrNull()
-                                                if (num == null) {
-                                                    viewModel.setMessage("Not a number.")
-                                                    return@Button
-                                                }
-                                                if (num == 0) return@Button
-                                                val text = (-num).toString()
-                                                viewModel.setTextField(text)
-                                                focusRequester.requestFocus()
-                                            },
-                                            modifier = Modifier
-                                        ) {
-                                            Text(text = "+/-", modifier = Modifier)
-                                        }
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Button(
-                                            onClick = { viewModel.updateStock(MyViewModel.mTextField.text) },
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text(text = "Enter")
-                                        }
-                                    }
-                                }
-                            } else {
-                                Image(
-                                    painter = painterResource(id = R.drawable.bk_logo),
-                                    contentDescription = "BK Machine Logo",
-                                    modifier = Modifier.fillMaxWidth(0.6f)
-                                )
+            val primaryColor = when(viewModel.appMode) {
+                AppMode.MAIN -> MainOrangePrimary
+                AppMode.TOOLS -> ToolPurplePrimary
+                AppMode.PARTS -> PartGreenPrimary
+                else -> MainOrangePrimary
+            }
+
+            ShopAppTheme(darkTheme = viewModel.isDarkTheme, primaryOverride = primaryColor) {
+                val flashType = viewModel.backgroundFlash
+                val backgroundColor by animateColorAsState(
+                    targetValue = when (flashType) {
+                        MainViewModel.FlashType.SUCCESS -> Color.Green.copy(alpha = 0.5f)
+                        MainViewModel.FlashType.FAILURE -> Color.Red.copy(alpha = 0.5f)
+                        null -> viewModel.backgroundColor
+                    },
+                    animationSpec = tween(durationMillis = 300),
+                    label = "FlashBackground"
+                )
+
+                Surface(
+                    modifier = Modifier.fillMaxSize(), color = backgroundColor
+                ) {
+                    when {
+                        viewModel.isCheckingRegistration -> {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
                             }
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxWidth(0.9f)
+                        }
+                        viewModel.networkErrorMessage != null -> {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.WifiOff,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "Connection Error",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = viewModel.networkErrorMessage!!,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 32.dp)
+                                )
+                                Spacer(modifier = Modifier.height(32.dp))
+                                Button(onClick = { 
+                                    viewModel.checkDeviceStatus()
+                                }) {
+                                    Text("Retry Connection")
+                                }
+                            }
+                        }
+                        viewModel.showRegistrationScreen -> {
+                            RegistrationScreen(viewModel)
+                        }
+                        viewModel.isBlocked -> {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = viewModel.resultMessage,
+                                    text = "Device Access Restricted",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = viewModel.resultMessage.ifBlank { "This device is not approved for access." },
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.offset(y = (-8).dp)
+                                    modifier = Modifier.padding(horizontal = 32.dp)
                                 )
                             }
-                            NavigationTabs()
+                        }
+                        else -> {
+                            if (viewModel.appMode != AppMode.MAIN) {
+                                BackHandler {
+                                    viewModel.selectAppMode(AppMode.MAIN, this)
+                                }
+                            }
+
+                            MainContent(viewModel, onToggleTheme = { viewModel.toggleTheme(this@MainActivity) })
                         }
                     }
                 }
@@ -215,53 +179,111 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startReceivers() {
+        if (isReceiverRegistered) return
         try {
+            val filter = IntentFilter(barcodeScannerReceiver.QR_ACTION)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(
-                    barcodeScannerReceiver,
-                    IntentFilter(barcodeScannerReceiver.QR_ACTION),
-                    RECEIVER_EXPORTED
-                )
+                registerReceiver(barcodeScannerReceiver, filter, Context.RECEIVER_EXPORTED)
             } else {
-                // For older versions, we still might want to specify exported if we know it comes from outside
-                // but standard registerReceiver is usually fine.
-                registerReceiver(
-                    barcodeScannerReceiver, IntentFilter(barcodeScannerReceiver.QR_ACTION)
-                )
+                registerReceiver(barcodeScannerReceiver, filter)
             }
+            isReceiverRegistered = true
+            Log.d("MainActivity", "Scanner receiver registered")
         } catch (e: Exception) {
             Log.e("MainActivity", "Receiver registration failed", e)
         }
     }
 
-    override fun onStop() {
-        super.onStop()
+    private fun stopReceivers() {
+        if (!isReceiverRegistered) return
         try {
             unregisterReceiver(barcodeScannerReceiver)
+            isReceiverRegistered = false
+            Log.d("MainActivity", "Scanner receiver unregistered")
         } catch (e: Exception) {
             Log.e("MainActivity", "Receiver unregistration failed", e)
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        stopReceivers()
+    }
+
     override fun onResume() {
         super.onResume()
+        // Refresh receiver
+        stopReceivers()
         startReceivers()
+        
+        // Re-verify registration status via the /me endpoint
+        viewModel.checkDeviceStatus()
+    }
+    
+    override fun onDestroy() {
+        stopReceivers()
+        super.onDestroy()
     }
 }
 
 @Composable
-fun RegistrationScreen(viewModel: AppViewModel) {
-    Dialog(onDismissRequest = { }) {
+fun MainContent(viewModel: MainViewModel, onToggleTheme: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (viewModel.appMode == AppMode.MAIN) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.bk_logo),
+                    contentDescription = "BK Machine Logo",
+                    modifier = Modifier.height(64.dp)
+                )
+                
+                IconButton(onClick = onToggleTheme) {
+                    Icon(
+                        imageVector = if (viewModel.isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                        contentDescription = "Toggle Theme",
+                        tint = if (viewModel.isDarkTheme) Color.White else Color.Black
+                    )
+                }
+            }
+        }
+        
+        Box(modifier = Modifier.weight(1f)) {
+            when (viewModel.appMode) {
+                AppMode.MAIN -> MainSelectionScreen(viewModel)
+                AppMode.TOOLS -> ToolsScreen(viewModel)
+                AppMode.PARTS -> PartsScreen(viewModel)
+                else -> MainSelectionScreen(viewModel)
+            }
+        }
+    }
+}
+
+@Composable
+fun RegistrationScreen(viewModel: MainViewModel) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Surface(
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
+            tonalElevation = 8.dp
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                Image(
+                    painter = painterResource(id = R.drawable.bk_logo),
+                    contentDescription = "BK Machine Logo",
+                    modifier = Modifier.height(48.dp)
+                )
+                
                 Text(
                     text = "Device Registration",
                     style = MaterialTheme.typography.headlineSmall,
@@ -297,7 +319,7 @@ fun RegistrationScreen(viewModel: AppViewModel) {
                 ) {
                     if (viewModel.isRegistering) {
                         CircularProgressIndicator(
-                            modifier = Modifier.width(20.dp).height(20.dp),
+                            modifier = Modifier.size(20.dp),
                             color = Color.White,
                             strokeWidth = 2.dp
                         )

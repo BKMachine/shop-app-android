@@ -11,11 +11,18 @@ class BarcodeScannerReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
         try {
-            Log.d("BarcodeScannerReceiver", "Received intent: ${intent?.action}")
-            if (intent?.action == QR_ACTION) {
-                val code = intent.getStringExtra(QR_EXTRA)
-                if (code != null) {
+            val action = intent?.action
+            Log.d("BarcodeScannerReceiver", "Received intent: $action")
+            
+            if (action == QR_ACTION) {
+                // Support both String and CharSequence extras as seen in PartInventory
+                val code = intent.getStringExtra(QR_EXTRA) ?: intent.getCharSequenceExtra(QR_EXTRA)?.toString()
+                
+                if (!code.isNullOrEmpty()) {
+                    Log.d("BarcodeScannerReceiver", "Scanned code: $code")
                     MyViewModel.handleScan(code)
+                } else {
+                    Log.w("BarcodeScannerReceiver", "Scanned code was null or empty")
                 }
             }
         } catch (e: Exception) {

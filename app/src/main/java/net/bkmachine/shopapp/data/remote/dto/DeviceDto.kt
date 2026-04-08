@@ -1,5 +1,6 @@
 package net.bkmachine.shopapp.data.remote.dto
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -16,12 +17,13 @@ data class DeviceRegistrationResponse(
 
 @Serializable
 data class DeviceInfo(
-    val id: String,
+    @SerialName("_id")
+    val id: String? = null,
     val deviceId: String,
     val displayName: String,
-    val deviceType: String,
-    val approved: Boolean,
-    val blocked: Boolean
+    val deviceType: String? = null,
+    val approved: Boolean = false,
+    val blocked: Boolean = false
 )
 
 @Serializable

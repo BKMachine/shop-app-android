@@ -11,16 +11,15 @@ import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.bkmachine.shopapp.ui.theme.Purple40
-import net.bkmachine.shopapp.ui.theme.Purple80
 
 @Composable
 fun NavigationTabs(modifier: Modifier = Modifier) {
@@ -57,17 +56,25 @@ fun HomeButton(
     icon: ImageVector,
     modifier: Modifier = Modifier
 ) {
-    val color: Color = if (text == MyViewModel.headerText) {
-        Purple80
+    val isSelected = text == MyViewModel.toolHeaderText
+    
+    // Using theme secondary for unselected state to match the "Tool Stock" screenshot style
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary
     } else {
-        Purple40
+        MaterialTheme.colorScheme.secondary
     }
+    
     Button(
-        colors = ButtonDefaults.buttonColors(containerColor = color),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = MaterialTheme.colorScheme.onPrimary
+        ),
         shape = RectangleShape,
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
         modifier = modifier,
         onClick = {
-            MyViewModel.selectTab(text)
+            MyViewModel.setToolTab(text)
         }
     ) {
         Column(
